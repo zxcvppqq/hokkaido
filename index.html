@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>北海道蜜月手帳</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body { background-color: #F7F4EB; font-family: sans-serif; color: #2D2D2D; margin: 0; padding: 20px; }
+        .card { background: white; border: 3px solid #2D2D2D; border-radius: 25px; padding: 15px; margin-bottom: 20px; box-shadow: 4px 4px 0px #2D2D2D; }
+        .btn { background: #2D2D2D; color: white; border: none; padding: 15px; border-radius: 15px; width: 100%; font-weight: bold; font-size: 16px; }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border: 2px solid #EEE; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
+        .timeline-item { display: flex; gap: 10px; margin-bottom: 15px; }
+        .time-tag { background: #2D2D2D; color: white; padding: 5px 10px; border-radius: 10px; font-size: 12px; height: fit-content; min-width: 45px; text-align: center; }
+        .event-box { flex: 1; background: white; border: 2px solid #2D2D2D; border-radius: 15px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="card" style="text-align: center;">
+            <h2 style="margin:0">🐼 北海道蜜月手帳</h2>
+            <div style="font-size: 12px; color: #5D8272; margin-top:5px; font-weight: bold;">❄️ -2°C | 🌅 06:45 🌇 16:10</div>
+        </div>
+        <div v-for="item in trips" :key="item.id" class="timeline-item">
+            <div class="time-tag">{{ item.time }}</div>
+            <div class="event-box">
+                <div style="font-weight: bold;">{{ item.title }}</div>
+                <div style="font-size: 12px; color: #666;">📍 北海道景點</div>
+            </div>
+        </div>
+        <div class="card">
+            <p style="font-weight: bold; margin-top: 0;">＋ 新增行程</p>
+            <input type="time" v-model="newTime">
+            <input type="text" v-model="newTitle" placeholder="要去哪裡？">
+            <button class="btn" @click="addTrip">加入手帳</button>
+        </div>
+    </div>
+    <script>
+        const { createApp } = Vue
+        createApp({
+            data() {
+                return {
+                    trips: JSON.parse(localStorage.getItem('hokkaido_trip') || '[]'),
+                    newTime: '12:00', newTitle: ''
+                }
+            },
+            methods: {
+                addTrip() {
+                    if(!this.newTitle) return
+                    this.trips.push({ id: Date.now(), time: this.newTime, title: this.newTitle })
+                    this.trips.sort((a, b) => a.time.localeCompare(b.time))
+                    localStorage.setItem('hokkaido_trip', JSON.stringify(this.trips))
+                    this.newTitle = ''
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
