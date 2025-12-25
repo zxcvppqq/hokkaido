@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>北海道蜜月手帳 2026</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        :root { --primary: #3A86FF; --green: #81B29A; --bg: #FDFBF7; }
+        body { background: var(--bg); font-family: sans-serif; margin: 0; padding-bottom: 100px; color: #333; }
+        
+        /* 頂部 */
+        .header { background: #fff; padding: 20px; border-bottom: 1px solid #eee; text-align: center; }
+        .countdown { background: #000; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 12px; display: inline-block; margin-bottom: 10px; }
+        
+        /* 日期捲軸 */
+        .date-scroller { display: flex; overflow-x: auto; gap: 10px; padding: 15px; background: #fff; }
+        .date-item { flex: 0 0 60px; padding: 10px; border: 1px solid #ddd; border-radius: 15px; text-align: center; background: #fff; }
+        .date-item.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        /* 卡片 */
+        .card { background: #fff; border-radius: 20px; padding: 15px; margin: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: relative; }
+        .note-box { background: #FFF9C4; padding: 10px; border-radius: 10px; margin-top: 10px; border: 1px dashed #E6D978; font-size: 14px; white-space: pre-wrap; }
+        
+        /* 輸入框 */
+        input, textarea, select { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid #eee; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
+        .btn { background: #000; color: #fff; border: none; padding: 15px; border-radius: 15px; width: 100%; font-weight: bold; margin-top: 10px; }
+
+        /* 底部導覽 */
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; height: 70px; background: #222; display: flex; justify-content: space-around; align-items: center; }
+        .nav-btn { color: #777; border: none; background: none; text-align: center; font-size: 12px; }
+        .nav-btn.active { color: #fff; }
+        
+        .del { position: absolute; top: 10px; right: 10px; color: #ccc; padding: 5px; }
+        .tag { font-size: 10px; background: #eee; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <div class="countdown">出發倒數 {{ globalCountdown }} 天</div>
+            <div style="font-size: 20px; font-weight: bold;">❄️ 北海道蜜月 2026</div>
+        </div>
+
+        <div v-if="tab === 'trip'">
+            <div class="date-scroller">
+                <div v-for="d in 12" :key="d" class="date-item" :class="{active: day === d}" @click="day = d">
+                    D{{ d }}<br><small>{{ getShortDate(d) }}</small>
+                </div>
+            </div>
+
+            <div class="card">
+                <strong>📍 新增行程</strong>
+                <input v-model="formTrip.title" placeholder="景點名稱">
+                <div style="display:flex; gap:5px;">
+                    <input v-model="formTrip.t1" type="time">
+                    <input v-model="formTrip.t2" type="time">
+                </div>
+                <textarea v-model="formTrip.note" placeholder="備忘錄：交通、必吃、注意事項..." rows="2"></textarea>
+                <button class="btn" @click="addTrip">加入 Day {{ day }}</button>
+            </div>
+
+            <div v-for="t in filteredTrips" :key="t.id" class="card">
+                <div class="del" @click="removeTrip(t.id)">✕</div>
+                <div style="color:var(--primary); font-size:12px; font-weight:bold;">{{ t.t1 }} - {{ t.t2 }}</div>
+                <div style="font-size:18px; font-weight:bold; margin:5px 0;">{{ t.title }}</div>
+                <div v-if="t.note" class="note-box">📝 備忘：{{ t.note }}</div>
+            </div>
+        </div>
+
+        <div v-if="tab === 'book'">
+            <div class="card">
+                <div style="display:flex; gap:10px; margin-bottom:10px;">
+                    <button @click="sub='t'" :style="sub==='t'?'font-weight:bold;border-bottom:2px solid #000':''" style="border:none;background:none;padding:10px;">交通</button>
+                    <button @click="sub='s'" :style="sub==='s'?'font-weight:bold;border-bottom:2px solid #000':''" style="border:none;background:none;padding:10px;">住宿</button>
+                </div>
+                <input v-model="formBook.title" placeholder="名稱">
+                <input v-model="formBook.info" placeholder="詳細資訊">
+                <button class="btn" @click="addBook" style="background:var(--green)">儲存預訂</button>
+            </div>
+            <div v-for="(b, i) in (sub==='t'?books.t:books.s)" class="card">
+                <div class="del" @click="removeBook(i)">✕</div>
+                <strong>{{ b.title }}</strong>
+                <div style="font-size:14px; color:#666; margin-top:5px;">{{ b.info }}</div>
+            </div>
+        </div>
+
+        <div v-if="tab === 'list'">
+            <div class="card">
+                <input v-model="newItem" @keyup.enter="addItem" placeholder="新增品項...">
+                <button class="btn" @click="addItem">＋ 新增</button>
+            </div>
+            <div class="card">
+                <div v-for="(item, i) in list" :key="i" style="display:flex; align-items:center; padding:10px 0; border-bottom:1px solid #eee;">
+                    <input type="checkbox" v-model="item.done" @change="save" style="width:20px;height:20px;margin-right:10px;">
+                    <span :style="item.done?'text-decoration:line-through;color:#ccc':''" style="flex:1">{{ item.text }}</span>
+                    <span @click="removeItem(i)" style="color:#ddd">✕</span>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="tab === 'money'">
+            <div class="card" style="background:#222; color:#fff; text-align:center;">
+                <div style="font-size:30px;">¥ {{ total }}</div>
+                <div style="color:#FFC0CB; font-size:14px;">約 NT$ {{ Math.round(total * 0.21) }}</div>
+            </div>
+            <div class="card">
+                <select v-model="formExp.cat">
+                    <option>🍱 吃喝</option><option>🚄 交通</option>
+                    <option>🛍️ 購物</option><option>🎡 景點</option><option>✨ 其他</option>
+                </select>
+                <input v-model.number="formExp.amt" type="number" placeholder="日幣金額">
+                <input v-model="formExp.note" placeholder="花費說明">
+                <button class="btn" @click="addExp">記錄開銷</button>
+            </div>
+            <div v-for="(e, i) in exps" class="card" style="display:flex; align-items:center;">
+                <span class="tag">{{ e.cat }}</span>
+                <span style="flex:1"><b>{{ e.note }}</b></span>
+                <span>¥ {{ e.amt }}</span>
+                <span @click="removeExp(i)" style="margin-left:15px; color:#ddd">✕</span>
+            </div>
+        </div>
+
+        <nav class="nav">
+            <button class="nav-btn" :class="{active: tab==='trip'}" @click="tab='trip'">🗓️<br>行程</button>
+            <button class="nav-btn" :class="{active: tab==='book'}" @click="tab='book'">🔖<br>預訂</button>
+            <button class="nav-btn" :class="{active: tab==='list'}" @click="tab='list'">✅<br>清單</button>
+            <button class="nav-btn" :class="{active: tab==='money'}" @click="tab='money'">🪙<br>記帳</button>
+        </nav>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+        createApp({
+            data() {
+                return {
+                    tab: 'trip', day: 1, sub: 't',
+                    start: '2026-01-12',
+                    formTrip: { title: '', t1: '09:00', t2: '10:00', note: '' },
+                    formBook: { title: '', info: '' },
+                    formExp: { amt: null, note: '', cat: '🍱 吃喝' },
+                    newItem: '',
+                    trips: JSON.parse(localStorage.getItem('hkd_trips') || '[]'),
+                    books: JSON.parse(localStorage.getItem('hkd_books') || '{"t":[],"s":[]}'),
+                    list: JSON.parse(localStorage.getItem('hkd_list') || '[{"text":"護照","done":false},{"text":"日幣","done":false}]'),
+                    exps: JSON.parse(localStorage.getItem('hkd_exps') || '[]')
+                }
+            },
+            computed: {
+                globalCountdown() {
+                    const diff = new Date(this.start) - new Date();
+                    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+                },
+                filteredTrips() {
+                    return this.trips.filter(t => t.day === this.day).sort((a,b) => a.t1.localeCompare(b.t1));
+                },
+                total() { return this.exps.reduce((s, e) => s + (e.amt || 0), 0); }
+            },
+            methods: {
+                getShortDate(d) {
+                    const date = new Date(this.start);
+                    date.setDate(date.getDate() + (d - 1));
+                    return (date.getMonth() + 1) + '/' + date.getDate();
+                },
+                addTrip() {
+                    if(!this.formTrip.title) return;
+                    this.trips.push({ id: Date.now(), day: this.day, ...this.formTrip });
+                    this.save();
+                    this.formTrip = { title: '', t1: '09:00', t2: '10:00', note: '' };
+                },
+                removeTrip(id) { this.trips = this.trips.filter(t => t.id !== id); this.save(); },
+                addBook() {
+                    if(!this.formBook.title) return;
+                    this.books[this.sub].push({...this.formBook});
+                    this.save(); this.formBook = { title: '', info: '' };
+                },
+                removeBook(i) { this.books[this.sub].splice(i, 1); this.save(); },
+                addItem() { if(this.newItem){ this.list.push({text:this.newItem,done:false}); this.save(); this.newItem=''; } },
+                removeItem(i) { this.list.splice(i, 1); this.save(); },
+                addExp() { if(this.formExp.amt){ this.exps.unshift({...this.formExp}); this.save(); this.formExp.amt=null; this.formExp.note=''; } },
+                removeExp(i) { this.exps.splice(i, 1); this.save(); },
+                save() {
+                    localStorage.setItem('hkd_trips', JSON.stringify(this.trips));
+                    localStorage.setItem('hkd_books', JSON.stringify(this.books));
+                    localStorage.setItem('hkd_list', JSON.stringify(this.list));
+                    localStorage.setItem('hkd_exps', JSON.stringify(this.exps));
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
