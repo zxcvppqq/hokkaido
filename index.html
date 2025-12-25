@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>北海道蜜月手帳 ❄️ 2026 旗艦版</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        :root { 
+            --primary: #3A86FF; 
+            --green: #81B29A;
+            --bg: #FDFBF7; 
+            --text: #333; 
+            --heart-pink: #FFC0CB;
+            --card-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        
+        body { background: var(--bg); font-family: "PingFang TC", sans-serif; margin: 0; padding-bottom: 120px; color: var(--text); }
+
+        /* 頂部資訊欄 */
+        .top-info-bar { background: #fff; padding: 25px 20px; border-bottom: 1px solid #F0F0F0; }
+        .main-title { font-size: 24px; font-weight: bold; color: var(--green); margin-bottom: 6px; }
+        .sub-info { font-size: 14px; color: #888; display: flex; align-items: center; justify-content: space-between; }
+        .countdown-badge { background: #000; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+
+        /* 日期選擇器 */
+        .date-scroller { display: flex; overflow-x: auto; gap: 12px; padding: 15px; background: #fff; }
+        .date-scroller::-webkit-scrollbar { display: none; }
+        .date-card {
+            flex: 0 0 75px; height: 90px; background: #fff; border-radius: 18px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border: 1px solid #EEE; transition: 0.3s;
+        }
+        .date-card.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+        /* 子分頁切換 */
+        .sub-tab-bar { display: flex; gap: 12px; padding: 15px; }
+        .sub-tab { flex: 1; padding: 14px; border-radius: 25px; background: #FFF; border: 1px solid #EEE; font-weight: bold; color: #666; }
+        .sub-tab.active { background: var(--green); color: #fff; border-color: var(--green); }
+
+        /* 卡片設計 */
+        .card { background: #fff; border-radius: 24px; padding: 20px; margin: 12px 15px; box-shadow: var(--card-shadow); position: relative; border: 1px solid #F8F8F8; }
+        .section-title { font-weight: bold; font-size: 18px; margin: 15px; color: var(--text); }
+
+        /* 清單樣式 */
+        .list-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #F5F5F5; }
+        .list-item:last-child { border: none; }
+        .checkbox { width: 22px; height: 22px; border: 2px solid #DDD; border-radius: 6px; margin-right: 12px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .checkbox.checked { background: var(--green); border-color: var(--green); }
+        .checkbox.checked::after { content: '✓'; color: white; font-size: 14px; }
+        .item-text { flex: 1; font-size: 16px; }
+        .item-text.done { text-decoration: line-through; color: #BBB; }
+
+        /* 記帳總計 */
+        .money-summary { background: #222; color: #fff; border-radius: 24px; padding: 30px 20px; text-align: center; margin: 15px; }
+        .money-total { font-size: 36px; font-weight: 800; }
+
+        /* 表單 */
+        input, textarea { width: 100%; padding: 14px; margin-top: 10px; border: 1px solid #F0F0F0; border-radius: 15px; box-sizing: border-box; background: #FAFAFA; font-size: 15px; outline: none; }
+        .btn-add { background: #000; color: #fff; border: none; padding: 16px; border-radius: 20px; width: 100%; font-weight: bold; margin-top: 15px; }
+
+        /* 導覽列 */
+        .nav-bar { position: fixed; bottom: 20px; left: 10px; right: 10px; height: 75px; background: #222; border-radius: 35px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; }
+        .nav-item { color: #666; text-align: center; flex: 1; border: none; background: none; outline: none; }
+        .nav-item.active { color: #FFF; }
+        .nav-text { font-size: 10px; display: block; margin-top: 4px; }
+        
+        .delete-btn { color: #EEE; font-size: 18px; padding-left: 10px; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="top-info-bar">
+            <div class="main-title">北海道蜜月旅行</div>
+            <div class="sub-info">
+                <span>✈️ 2026 函館、札幌 12日遊</span>
+                <div class="countdown-badge">D-{{ globalCountdown }}</div>
+            </div>
+        </div>
+
+        <div v-if="activeTab === 'trip'">
+            <div class="date-scroller">
+                <div v-for="d in 12" :key="d" class="date-card" :class="{active: currentDay === d}" @click="currentDay = d">
+                    <span style="font-size:10px;">DAY {{ d }}</span>
+                    <span style="font-size:20px; font-weight:bold;">{{ getShortDate(d) }}</span>
+                </div>
+            </div>
+            <div class="card">
+                <input v-model="newTrip.desc" placeholder="要去哪裡？">
+                <input v-model="newTrip.startTime" type="time" style="width: 48%;">
+                <input v-model="newTrip.endTime" type="time" style="width: 48%; float: right;">
+                <button class="btn-add" @click="addTrip">加入行程</button>
+            </div>
+            <div v-for="item in filteredTrips" :key="item.id" class="card">
+                <div style="float:right; color:#DDD;" @click="removeTrip(item.id)">✕</div>
+                <div style="color:var(--primary); font-weight:bold;">⌚ {{item.startTime}}</div>
+                <div style="font-size:18px; font-weight:bold; margin-top:5px;">{{item.desc}}</div>
+            </div>
+        </div>
+
+        <div v-if="activeTab === 'booking'">
+            <div class="sub-tab-bar">
+                <button class="sub-tab" :class="{active: bookingSubTab === 'transport'}" @click="bookingSubTab = 'transport'">✈️ 交通</button>
+                <button class="sub-tab" :class="{active: bookingSubTab === 'stay'}" @click="bookingSubTab = 'stay'">🏨 住宿</button>
+            </div>
+            <div class="card">
+                <input v-model="newBook.title" :placeholder="bookingSubTab === 'transport' ? '航班/車次' : '飯店名稱'">
+                <input v-model="newBook.info" placeholder="詳細資訊/地址">
+                <button class="btn-add" style="background:var(--green);" @click="addBooking">儲存預訂</button>
+            </div>
+            <div v-for="(b, i) in (bookingSubTab === 'transport' ? transport : stays)" :key="i" class="card">
+                <div style="float:right; color:#DDD;" @click="removeBooking(i)">✕</div>
+                <div style="font-weight:bold; font-size:18px;">{{ b.title }}</div>
+                <div style="color:#666; font-size:14px; margin-top:5px;">{{ b.info }}</div>
+            </div>
+        </div>
+
+        <div v-if="activeTab === 'list'">
+            <div class="section-title">準備清單 ✅</div>
+            <div class="card">
+                <div style="display:flex; gap:10px;">
+                    <input v-model="newItem" placeholder="還需要帶什麼？" style="margin:0;">
+                    <button class="btn-add" @click="addItem" style="width:60px; margin:0;">+</button>
+                </div>
+            </div>
+            <div class="card">
+                <div v-for="(item, index) in checklist" :key="index" class="list-item">
+                    <div class="checkbox" :class="{checked: item.done}" @click="toggleItem(index)"></div>
+                    <div class="item-text" :class="{done: item.done}" @click="toggleItem(index)">{{ item.text }}</div>
+                    <div class="delete-btn" @click="removeItem(index)">✕</div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="activeTab === 'money'">
+            <div class="money-summary">
+                <div class="money-total">¥ {{ totalSpent }}</div>
+                <div style="color:var(--heart-pink); font-size:14px;">NT$ {{ Math.round(totalSpent * 0.21) }}</div>
+            </div>
+            <div class="card">
+                <input v-model.number="newExp.amount" type="number" placeholder="金額 (JPY)">
+                <input v-model="newExp.note" placeholder="項目說明">
+                <button class="btn-add" @click="addExp">新增支出</button>
+            </div>
+            <div v-for="(exp, index) in expenses" :key="index" class="card" style="display:flex; justify-content:space-between;">
+                <span>{{ exp.note }}</span><b>¥ {{ exp.amount }}</b>
+            </div>
+        </div>
+
+        <nav class="nav-bar">
+            <button v-for="tab in [{k:'trip',i:'🗓️',t:'行程'},{k:'booking',i:'🔖',t:'預訂'},{k:'list',i:'✅',t:'清單'},{k:'money',i:'🪙',t:'記帳'}]" 
+                    :key="tab.k" class="nav-item" :class="{active: activeTab === tab.k}" @click="activeTab = tab.k">
+                <span style="font-size:22px;">{{ tab.i }}</span><span class="nav-text">{{ tab.t }}</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+        createApp({
+            data() {
+                return {
+                    activeTab: 'trip', currentDay: 1, bookingSubTab: 'transport',
+                    startDate: '2026-01-12',
+                    newTrip: { startTime: '', endTime: '', desc: '' },
+                    newBook: { title: '', info: '' },
+                    newExp: { amount: null, note: '' },
+                    newItem: '',
+                    trips: JSON.parse(localStorage.getItem('h_trips_v28') || '[]'),
+                    transport: JSON.parse(localStorage.getItem('h_trans_v28') || '[]'),
+                    stays: JSON.parse(localStorage.getItem('h_stays_v28') || '[]'),
+                    expenses: JSON.parse(localStorage.getItem('h_money_v28') || '[]'),
+                    // 預設12日北海道準備品項
+                    checklist: JSON.parse(localStorage.getItem('h_list_v28')) || [
+                        { text: '護照 & 簽證/入境QR Code', done: false },
+                        { text: '極地保暖衣/發熱衣 (12日份)', done: false },
+                        { text: '暖暖包 (手持+貼式)', done: false },
+                        { text: '防水防滑雪靴', done: false },
+                        { text: '保濕乳液/護唇膏 (日本很乾)', done: false },
+                        { text: '行動電源 & 萬用轉接頭', done: false },
+                        { text: '網路卡/WiFi機', done: false },
+                        { text: '毛帽、圍巾、防水手套', done: false },
+                        { text: '常用感冒/腸胃藥', done: false },
+                        { text: '日幣現金 & 高回饋信用卡', done: false },
+                        { text: '保溫瓶 (喝熱水必備)', done: false },
+                        { text: '雨傘/輕便雨衣', done: false }
+                    ]
+                }
+            },
+            computed: {
+                globalCountdown() {
+                    const diff = new Date(this.startDate) - new Date();
+                    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+                },
+                filteredTrips() { return this.trips.filter(t => t.day === this.currentDay).sort((a,b) => a.startTime.localeCompare(b.startTime)); },
+                totalSpent() { return this.expenses.reduce((sum, item) => sum + (item.amount || 0), 0); }
+            },
+            methods: {
+                getShortDate(day) {
+                    const d = new Date(this.startDate); d.setDate(d.getDate() + (day - 1));
+                    return `${d.getMonth() + 1}/${d.getDate()}`;
+                },
+                addTrip() { if(this.newTrip.desc){ this.trips.push({ id: Date.now(), day: this.currentDay, ...this.newTrip }); this.save(); this.newTrip = { startTime: '', endTime: '', desc: '' }; } },
+                removeTrip(id) { this.trips = this.trips.filter(t => t.id !== id); this.save(); },
+                addBooking() {
+                    const item = { ...this.newBook };
+                    if(this.bookingSubTab === 'transport') this.transport.push(item);
+                    else this.stays.push(item);
+                    this.save(); this.newBook = { title: '', info: '' };
+                },
+                removeBooking(i) {
+                    if(this.bookingSubTab === 'transport') this.transport.splice(i, 1);
+                    else this.stays.splice(i, 1);
+                    this.save();
+                },
+                addItem() { if(this.newItem){ this.checklist.push({ text: this.newItem, done: false }); this.save(); this.newItem = ''; } },
+                toggleItem(i) { this.checklist[i].done = !this.checklist[i].done; this.save(); },
+                removeItem(i) { this.checklist.splice(i, 1); this.save(); },
+                addExp() { if(this.newExp.amount){ this.expenses.push({...this.newExp}); this.save(); this.newExp = { amount: null, note: '' }; } },
+                save() {
+                    localStorage.setItem('h_trips_v28', JSON.stringify(this.trips));
+                    localStorage.setItem('h_trans_v28', JSON.stringify(this.transport));
+                    localStorage.setItem('h_stays_v28', JSON.stringify(this.stays));
+                    localStorage.setItem('h_money_v28', JSON.stringify(this.expenses));
+                    localStorage.setItem('h_list_v28', JSON.stringify(this.checklist));
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
