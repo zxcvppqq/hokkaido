@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>北海道蜜月手帳 ❄️ 2026 智慧記帳版</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        :root { 
+            --primary: #3A86FF; --green: #81B29A; --bg: #FDFBF7; --text: #333; 
+            --heart-pink: #FFC0CB; --card-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            --c-eat: #FFADAD; --c-move: #9BF6FF; --c-shop: #FFD6A5; --c-play: #CAFFBF; --c-other: #BDB2FF;
+        }
+        
+        body { background: var(--bg); font-family: "PingFang TC", sans-serif; margin: 0; padding-bottom: 120px; color: var(--text); }
+
+        /* 頂部資訊 */
+        .top-info-bar { background: #fff; padding: 25px 20px; border-bottom: 1px solid #F0F0F0; }
+        .main-title { font-size: 24px; font-weight: bold; color: var(--green); margin-bottom: 6px; }
+        .sub-info { font-size: 14px; color: #888; display: flex; align-items: center; justify-content: space-between; }
+        .countdown-badge { background: #000; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+
+        /* 卡片與容器 */
+        .card { background: #fff; border-radius: 24px; padding: 20px; margin: 12px 15px; box-shadow: var(--card-shadow); position: relative; border: 1px solid #F8F8F8; }
+        .section-title { font-weight: bold; font-size: 18px; margin: 15px; }
+
+        /* 統計圖表區 */
+        .chart-container { display: flex; align-items: center; gap: 20px; padding: 10px 0; }
+        .stat-ring { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; border: 8px solid #F0F0F0; }
+        .stat-legend { flex: 1; font-size: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* 記帳分類選擇 */
+        .category-picker { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
+        .category-picker::-webkit-scrollbar { display: none; }
+        .cat-btn { padding: 8px 15px; border-radius: 15px; border: 1px solid #EEE; background: #FFF; white-space: nowrap; font-size: 13px; }
+        .cat-btn.active { background: #333; color: #FFF; border-color: #333; }
+
+        /* 清單與行程通用樣式 */
+        .list-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #F5F5F5; }
+        .cat-tag { font-size: 10px; padding: 2px 6px; border-radius: 6px; margin-right: 8px; font-weight: bold; }
+
+        /* 導覽列 */
+        .nav-bar { position: fixed; bottom: 20px; left: 10px; right: 10px; height: 75px; background: #222; border-radius: 35px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; }
+        .nav-item { color: #666; text-align: center; flex: 1; border: none; background: none; outline: none; }
+        .nav-item.active { color: #FFF; }
+        .nav-text { font-size: 10px; display: block; margin-top: 4px; }
+
+        input, select { width: 100%; padding: 14px; margin-top: 10px; border: 1px solid #F0F0F0; border-radius: 15px; box-sizing: border-box; background: #FAFAFA; font-size: 15px; outline: none; }
+        .btn-add { background: #000; color: #fff; border: none; padding: 16px; border-radius: 20px; width: 100%; font-weight: bold; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="top-info-bar">
+            <div class="main-title">北海道蜜月旅行</div>
+            <div class="sub-info">
+                <span>✈️ 2026 函館、札幌 12日遊</span>
+                <div class="countdown-badge">D-{{ globalCountdown }}</div>
+            </div>
+        </div>
+
+        <div v-if="activeTab === 'trip'">
+            <div class="card" style="text-align:center; color:#999;">點擊下方分頁切換功能</div>
+        </div>
+
+        <div v-if="activeTab === 'list'">
+            </div>
+
+        <div v-if="activeTab === 'money'">
+            <div class="card" style="background:#222; color:#fff;">
+                <div style="font-size:32px; font-weight:bold; text-align:center;">¥ {{ totalSpent }}</div>
+                <div style="color:var(--heart-pink); text-align:center; font-size:14px; margin-bottom:15px;">約 NT$ {{ Math.round(totalSpent * 0.21) }}</div>
+                
+                <div class="chart-container">
+                    <div class="stat-ring">
+                        <div style="font-size:12px; color:#AAA;">比例</div>
+                    </div>
+                    <div class="stat-legend">
+                        <div v-for="c in categories" :key="c.n" class="legend-item">
+                            <div class="dot" :style="{background: c.c}"></div>
+                            {{c.n}}: {{getCatPercent(c.n)}}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="category-picker">
+                    <button v-for="c in categories" :key="c.n" 
+                            class="cat-btn" :class="{active: newExp.category === c.n}" 
+                            @click="newExp.category = c.n">
+                        {{c.i}} {{c.n}}
+                    </button>
+                </div>
+                <input v-model.number="newExp.amount" type="number" placeholder="金額 (日幣)">
+                <input v-model="newExp.note" placeholder="項目 (如：成吉思汗烤肉)">
+                <button class="btn-add" @click="addExp">新增支出</button>
+            </div>
+
+            <div class="section-title">消費明細</div>
+            <div v-for="(exp, index) in expenses" :key="index" class="card" style="padding:15px 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center;">
+                        <span class="cat-tag" :style="{background: getCatColor(exp.category)}">{{exp.category}}</span>
+                        <span style="font-weight:bold;">{{ exp.note }}</span>
+                    </div>
+                    <div>
+                        <b>¥ {{ exp.amount }}</b>
+                        <span @click="removeExp(index)" style="color:#DDD; margin-left:12px;">✕</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="nav-bar">
+            <button v-for="tab in [{k:'trip',i:'🗓️',t:'行程'},{k:'booking',i:'🔖',t:'預訂'},{k:'list',i:'✅',t:'清單'},{k:'money',i:'🪙',t:'記帳'}]" 
+                    :key="tab.k" class="nav-item" :class="{active: activeTab === tab.k}" @click="activeTab = tab.k">
+                <span style="font-size:22px;">{{ tab.i }}</span><span class="nav-text">{{ tab.t }}</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+        createApp({
+            data() {
+                return {
+                    activeTab: 'money', currentDay: 1,
+                    startDate: '2026-01-12',
+                    newExp: { amount: null, note: '', category: '吃喝' },
+                    categories: [
+                        {n:'吃喝', i:'🍱', c:'#FFADAD'},
+                        {n:'交通', i:'🚄', c:'#9BF6FF'},
+                        {n:'購物', i:'🛍️', c:'#FFD6A5'},
+                        {n:'景點', i:'🎡', c:'#CAFFBF'},
+                        {n:'其他', i:'✨', c:'#BDB2FF'}
+                    ],
+                    expenses: JSON.parse(localStorage.getItem('h_money_v29') || '[]'),
+                    checklist: JSON.parse(localStorage.getItem('h_list_v29') || []),
+                    // ... 行程與預訂數據維持原樣 ...
+                }
+            },
+            computed: {
+                globalCountdown() {
+                    const diff = new Date(this.startDate) - new Date();
+                    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+                },
+                totalSpent() { return this.expenses.reduce((sum, item) => sum + (item.amount || 0), 0); }
+            },
+            methods: {
+                addExp() {
+                    if(this.newExp.amount && this.newExp.note){
+                        this.expenses.unshift({...this.newExp});
+                        this.save();
+                        this.newExp.amount = null; this.newExp.note = '';
+                    }
+                },
+                removeExp(i) { this.expenses.splice(i, 1); this.save(); },
+                getCatColor(catName) {
+                    const cat = this.categories.find(c => c.n === catName);
+                    return cat ? cat.c : '#EEE';
+                },
+                getCatPercent(catName) {
+                    if (this.totalSpent === 0) return 0;
+                    const catTotal = this.expenses
+                        .filter(e => e.category === catName)
+                        .reduce((sum, e) => sum + e.amount, 0);
+                    return Math.round((catTotal / this.totalSpent) * 100);
+                },
+                save() {
+                    localStorage.setItem('h_money_v29', JSON.stringify(this.expenses));
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
