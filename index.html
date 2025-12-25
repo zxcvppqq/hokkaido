@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>北國猛男哈米達 - 蜜月手帳</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        :root { --bg: #F7F7F2; --teal: #4FB3B3; --blue: #5EB7F0; --text: #4A4A4A; }
+        body { background: var(--bg); font-family: -apple-system, sans-serif; margin: 0; padding: 20px 15px 100px 15px; }
+        
+        /* 頂部 Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .avatars { display: flex; }
+        .avatar { width: 38px; height: 38px; border-radius: 50%; border: 2px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-left: -12px; background: #ddd; background-size: cover; }
+
+        /* 天氣卡片 - 藍色漸層 */
+        .weather-card { background: linear-gradient(135deg, #5EB7F0, #2D9CDB); border-radius: 30px; padding: 25px; color: white; box-shadow: 0 10px 25px rgba(94,183,240,0.3); margin-bottom: 20px; }
+        .weather-main { font-size: 48px; font-weight: bold; }
+        
+        /* 機票樣式 - 白色圓角 */
+        .ticket { background: white; border-radius: 30px; padding: 25px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.03); }
+        .flight-header { border-bottom: 1px dashed #EEE; padding-bottom: 15px; margin-bottom: 15px; text-align: center; font-size: 32px; font-weight: 900; letter-spacing: 2px; }
+        .flight-path { display: flex; justify-content: space-between; align-items: center; text-align: center; }
+        .airport { font-size: 28px; font-weight: bold; }
+
+        /* 底部導覽列 */
+        .nav-bar { position: fixed; bottom: 0; left: 0; width: 100%; height: 85px; background: white; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); }
+        .nav-item { text-align: center; color: #BABABA; font-size: 11px; }
+        .nav-item.active { color: var(--teal); font-weight: bold; }
+        .nav-icon { font-size: 26px; display: block; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <div>
+                <h1 style="color:var(--teal); margin:0; font-size:22px;">北國猛男哈米達</h1>
+                <small style="color:#999;">❄️ 2025 北海道蜜月 1/12 - 1/23</small>
+            </div>
+            <div class="avatars">
+                <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Felix')"></div>
+                <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka')"></div>
+                <div class="avatar" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Bear')"></div>
+            </div>
+        </div>
+
+        <div v-if="activeTab === 'trip'">
+            <div class="weather-card">
+                <div style="display:flex; justify-content:space-between;"><span>📍 SAPPORO</span><span>☀️</span></div>
+                <div class="weather-main">-5°</div>
+                <div style="background:rgba(255,255,255,0.2); padding:10px; border-radius:15px; margin-top:15px; font-size:14px;">
+                    👕 穿搭建議：發熱衣 + 防風外套，戶外行走請注意防滑。
+                </div>
+            </div>
+        </div>
+
+        <div v-if="activeTab === 'book'">
+            <div class="ticket">
+                <div class="flight-header">BX 796</div>
+                <div class="flight-path">
+                    <div><div class="airport">KHH</div><div>15:00</div></div>
+                    <div style="color:var(--blue); font-size:24px;">✈️</div>
+                    <div><div class="airport">PUS</div><div>18:25</div></div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="nav-bar">
+            <div v-for="n in navs" :class="['nav-item', {active: activeTab === n.id}]" @click="activeTab = n.id">
+                <span class="nav-icon">{{ n.icon }}</span>{{ n.name }}
+            </div>
+        </nav>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+        createApp({
+            data() {
+                return {
+                    activeTab: 'trip',
+                    navs: [
+                        {id:'trip', name:'行程', icon:'🗓️'},
+                        {id:'book', name:'預訂', icon:'🎫'},
+                        {id:'money', name:'記帳', icon:'🪙'},
+                        {id:'member', name:'成員', icon:'👥'}
+                    ]
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
